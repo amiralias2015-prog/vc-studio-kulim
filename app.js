@@ -1,0 +1,29 @@
+const C=window.VC_CONFIG||{}, $=id=>document.getElementById(id);
+const ready=!!(C.supabaseUrl&&C.supabaseAnonKey), db=ready?window.supabase.createClient(C.supabaseUrl,C.supabaseAnonKey):null;
+let concept='A',selectedTime='',settings=null,booked=[],busy=false;
+const pad=n=>String(n).padStart(2,'0'), displayTime=t=>{const[h,m]=t.split(':').map(Number);return (h%12||12)+':'+pad(m)+(h>=12?' PM':' AM')},times=Array.from({length:30},(_,i)=>pad(9+Math.floor(i/2))+':'+(i%2?'30':'00'));
+const money=()=>{const n=Number($('people').value),d=$('date').value,base=settings&&(d===settings.raya_first||d===settings.raya_second)?200:150,extra=Math.max(0,n-6)*10;return{base,extra,total:base+extra}};
+function chooseConcept(x){concept=x;selectedTime='';$('conceptA').setAttribute('aria-pressed',String(x==='A'));$('conceptB').setAttribute('aria-pressed',String(x==='B'));renderSlots()}window.chooseConcept=chooseConcept;
+function renderSummary(){const p=money();$('sumConcept').textContent=concept;$('sumDate').textContent=$('date').value||'Belum pilih';$('sumTime').textContent=selectedTime?displayTime(selectedTime):'Belum pilih';$('sumPeople').textContent=$('people').value+' orang';$('sumBase').textContent='RM'+p.base;$('sumExtra').textContent='RM'+p.extra;$('total').textContent='RM'+p.total;$('balance').textContent='RM'+(p.total-50)}window.renderSummary=renderSummary;
+async function renderSlots(){selectedTime='';const d=$('date').value,box=$('slots');box.replaceChildren();if(!d){box.textContent='Pilih tarikh dahulu.';renderSummary();return}
+if(ready&&settings?.booking_open){const r=await db.rpc('slot_availability',{p_day:d,p_concept:concept});if(r.error){$('bookingStatus').textContent='Tidak dapat semak slot.';return}booked=r.data||[]}else booked=[];
+for(const time of times){const b=document.createElement('button');b.type='button';b.className='slot';b.textContent=displayTime(time);const rest=settings?.ramadan_start&&settings?.ramadan_end&&d>=settings.ramadan_start&&d<=settings.ramadan_end&&time>='19:00'&&time<'20:30',unavailable=rest||booked.some(x=>x.slot_time===time&&x.unavailable);b.disabled=unavailable;b.title=rest?'Rehat berbuka':unavailable?'Slot penuh':'Slot kosong';if(unavailable)b.textContent+=rest?' · Rehat':' · Penuh';b.onclick=()=>{selectedTime=time;box.querySelectorAll('.slot').forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');renderSummary()};box.append(b)}renderSummary()}window.renderSlots=renderSlots;
+async function submitBooking(e){e.preventDefault();if(busy)return;const d=$('date').value,name=$('custName').value.trim(),phone=$('phone').value.trim();
+if(!ready||!settings?.booking_open||!C.bankName||!C.bankAccount){$('bookingStatus').textContent='Booking belum dibuka.';return}
+if(!selectedTime||!name||!/^\+?[0-9][0-9 -]{7,17}$/.test(phone)||!$('agree').checked){$('bookingStatus').textContent='Lengkapkan maklumat, slot dan polisi.';return}
+busy=true;$('submitBooking').disabled=true;$('bookingStatus').textContent='Menyimpan slot…';
+try{const r=await db.rpc('create_studio_booking',{p_concept:concept,p_date:d,p_time:selectedTime,p_name:name,p_phone:phone,p_guests:Number($('people').value),p_payment:$('payment').value});if(r.error)throw r.error;
+const b=r.data[0];$('bookingStatus').textContent='Slot dipegang sementara 30 minit. Rujukan: '+b.booking_ref;$('bookingRef').textContent=b.booking_ref;$('bookingDetails').textContent=concept+' · '+d+' · '+displayTime(selectedTime)+' · RM'+b.total_amount+' · Deposit RM50';
+const msg='Assalamualaikum VC STUDIO KULIM, booking '+b.booking_ref+'. Konsep '+concept+', '+d+', '+displayTime(selectedTime)+'. Saya ingin hantar bukti deposit RM50 ('+$('payment').value+').';
+$('receiptWhatsapp').href='https://wa.me/'+(C.studioWhatsapp||'60194185836')+'?text='+encodeURIComponent(msg);$('bookingSuccess').classList.remove('hidden');$('bookingSuccess').scrollIntoView({behavior:'smooth'});await renderSlots()
+}catch(e){$('bookingStatus').textContent=e.message||'Gagal booking. Sila cuba lagi.';await renderSlots()}finally{busy=false;$('submitBooking').disabled=!settings?.booking_open}}
+async function init(){for(let i=1;i<=15;i++){const o=document.createElement('option');o.value=i;o.textContent=i+' orang';o.selected=i===6;$('people').append(o)}
+for(const [id,img] of [['conceptA',C.conceptAImage],['conceptB',C.conceptBImage]])if(img){const p=$(id).querySelector('.placeholder');p.style.background="center/cover url('"+encodeURI(img)+"')";p.textContent=''}
+if(ready){const r=await db.rpc('public_studio_settings');if(!r.error&&r.data?.length)settings=r.data[0]}
+settings=settings||{booking_start:C.bookingStart,booking_end:C.bookingEnd,ramadan_start:C.ramadanStart,ramadan_end:C.ramadanEnd,raya_first:C.rayaFirst,raya_second:C.rayaSecond,booking_open:false};
+$('date').min=settings.booking_start||new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'});if(settings.booking_end)$('date').max=settings.booking_end;
+const enabled=!!(settings.booking_open&&ready&&C.bankName&&C.bankAccount);
+if(enabled)$('launchNotice').classList.add('hidden');else $('launchNotice').textContent='TEMPAHAN BELUM DIBUKA — Paparan ujian sahaja. Jangan bayar deposit dahulu.';
+$('submitBooking').disabled=!enabled;$('paymentInfo').textContent=C.bankName&&C.bankAccount?C.bankName+' · '+C.bankAccount+' · '+(C.bankHolder||''):'Maklumat bank akan diumumkan oleh studio.';
+if(C.duitNowQrImage){$('qrImage').src=C.duitNowQrImage;$('qrImage').classList.remove('hidden')}
+$('bookingForm').addEventListener('submit',submitBooking);$('date').addEventListener('change',renderSlots);$('people').addEventListener('change',renderSummary);renderSlots()}init();
