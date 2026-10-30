@@ -1,0 +1,1 @@
+window.VC_CONFIG={supabaseUrl:'',supabaseAnonKey:'',adminEmails:[],bankName:'',bankAccount:'',bankHolder:'',duitNowQrImage:'',studioWhatsapp:'60194185836',bookingStart:'',bookingEnd:'',ramadanStart:'',ramadanEnd:'',rayaFirst:'',rayaSecond:'',conceptAImage:'',conceptBImage:''};
