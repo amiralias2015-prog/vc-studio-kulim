@@ -45,6 +45,16 @@ window.vcAdminExtra={
   const wrap=$('tomorrowReminders');wrap.replaceChildren();const info=document.createElement('p');info.textContent='Tarikh esok: '+date+' — '+rows.length+' booking confirmed';wrap.append(info);
   for(const b of rows){const btn=document.createElement('button');btn.type='button';btn.className='inlineAction';btn.textContent='📲 '+b.slot_time.slice(0,5)+' · '+b.concept+' · '+b.customer_name;btn.onclick=()=>reminderWhatsApp(b);wrap.append(btn)}
  },
+ confirmationWhatsApp(b){
+  if(b.status!=='confirmed'){alert('Booking belum disahkan.');return}
+  let phone=String(b.phone||'').replace(/\D/g,'');
+  if(phone.startsWith('0'))phone='60'+phone.slice(1);
+  else if(!phone.startsWith('60')&&phone.length>=9&&phone.length<=10)phone='60'+phone;
+  if(!/^60\d{9,10}$/.test(phone)){alert('Nombor WhatsApp tidak sah.');return}
+  const t=String(b.slot_time||'').slice(0,5);
+  const msg='Assalamualaikum '+b.customer_name+' 😊\n\nBooking VC STUDIO KULIM telah DISAHKAN.\nRujukan: '+b.booking_ref+'\nTarikh: '+b.booking_date+'\nMasa: '+t+'\nKonsep: '+b.concept+'\nBilangan: '+b.guests+' orang\n\nSila hadir 5–10 minit lebih awal. Lokasi: 973B Jalan Lembah Impiana 7, 09000 Kulim, Kedah.\n\nTerima kasih! 📸';
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank','noopener,noreferrer');
+ },
  async markBalance(b){
   if(b.status!=='confirmed'){alert('Sahkan booking dahulu.');return;}
   const max=Number(b.total_amount)-Number(b.deposit);
