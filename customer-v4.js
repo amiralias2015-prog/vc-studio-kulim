@@ -7,7 +7,15 @@
   out.hidden=false;out.textContent='Menyemak tempahan…';link.classList.add('hidden');
   if(!/^VC-[A-Z0-9]{7,14}$/.test(ref)||!/^\+?[0-9][0-9\s-]{7,18}$/.test(phone)){out.textContent='Masukkan rujukan VC-... dan nombor WhatsApp yang sah.';return}
   if(typeof db==='undefined'||!db){out.textContent='Sambungan belum tersedia.';return}
-  const r=await db.rpc('lookup_studio_booking',{p_ref:ref,p_phone:phone});
+  let r;
+  try {
+   const response=await fetch('https://qqbedtynflkvgdhjwbyj.supabase.co/functions/v1/vc-booking-lookup',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ref,phone}),cache:'no-store'
+   });
+   if(!response.ok)throw new Error('Semakan server tidak tersedia');
+   const payload=await response.json();
+   r={data:payload.booking?[payload.booking]:[],error:null};
+  } catch(err){r={data:[],error:err}}
   if(r.error){out.textContent='Semakan belum tersedia. Sila hubungi studio jika memerlukan bantuan.';return}
   if(!r.data?.length){out.textContent='Tempahan aktif tidak dijumpai. Semak nombor rujukan dan WhatsApp, atau hubungi studio.';return}
   const b=r.data[0],time=String(b.slot_time||'').slice(0,5);
