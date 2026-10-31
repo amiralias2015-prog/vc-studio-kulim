@@ -6,13 +6,13 @@ const fmt=d=>d.split('-').reverse().join('/');
 let last=null;
 async function getSchedule(){
  const date=el('shooterDate').value;if(!date){el('shooterList').textContent='Pilih tarikh dahulu.';return null}
- const r=await db.from('studio_bookings').select('booking_ref,concept,booking_date,slot_time,customer_name,guests,status').eq('booking_date',date).eq('status','confirmed').order('slot_time',{ascending:true}).limit(1000);
+ const r=await db.from('studio_bookings').select('booking_ref,concept,booking_date,slot_time,customer_name,phone,guests,status').eq('booking_date',date).eq('status','confirmed').order('slot_time',{ascending:true}).limit(1000);
  if(r.error){el('shooterList').textContent='Gagal memuatkan booking: '+r.error.message;return null}
  return {date,rows:r.data||[]};
 }
 function tableHTML(x,concept){
  const rows=x.rows.filter(b=>b.concept===concept),byTime=new Map(rows.map(b=>[String(b.slot_time).slice(0,5),b]));
- return '<h2>Konsep '+concept+' — '+rows.length+' booking</h2><table><thead><tr><th>Masa</th><th>Nama pelanggan</th><th>Orang</th><th>Rujukan</th><th>Hadir ✓</th></tr></thead><tbody>'+times.map(t=>{const b=byTime.get(t);return '<tr><td>'+t+'</td><td>'+(b?esc(b.customer_name):'—')+'</td><td>'+(b?esc(b.guests):'')+'</td><td>'+(b?esc(b.booking_ref):'')+'</td><td>☐</td></tr>'}).join('')+'</tbody></table>'
+ return '<h2>Konsep '+concept+' — '+rows.length+' booking</h2><table><thead><tr><th>Masa</th><th>Nama pelanggan</th><th>Telefon</th><th>Hadir ✓</th></tr></thead><tbody>'+times.map(t=>{const b=byTime.get(t);return '<tr><td>'+t+'</td><td>'+(b?esc(b.customer_name):'—')+'</td><td>'+(b?esc(b.phone):'')+'</td><td>☐</td></tr>'}).join('')+'</tbody></table>'
 }
 function preview(x){
  const n=x.rows.length;
