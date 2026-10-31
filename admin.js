@@ -32,10 +32,10 @@ async function checkBookingDate(){
  if(book.error||blocked.error){$('dateSummary').textContent='Tidak dapat semak: '+(book.error||blocked.error).message;return;}
  const all=book.data||[],closed=blocked.data||[],now=Date.now();
  const active=all.filter(b=>b.status==='confirmed'||b.status==='pending_review'||b.status==='awaiting_payment'&&(!b.expires_at||Date.parse(b.expires_at)>now));
- const ss=settingsResult.data||{},ramadan=ss.ramadan_start&&ss.ramadan_end&&date>=ss.ramadan_start&&date<=ss.ramadan_end;
+ 
  const totals={A:0,B:0},pending={A:0,B:0};
  active.forEach(b=>{if(b.concept==='A'||b.concept==='B'){if(b.status==='confirmed')totals[b.concept]++;else pending[b.concept]++;}});
- const countClosed=c=>Array.from({length:30},(_,i)=>String(9+Math.floor(i/2)).padStart(2,'0')+':'+(i%2?'30':'00')).filter(t=>(ramadan&&['19:00','19:30','20:00'].includes(t))||closed.some(x=>x.concept===c&&String(x.slot_time).slice(0,5)===t)).length;
+ const countClosed=c=>Array.from({length:30},(_,i)=>String(9+Math.floor(i/2)).padStart(2,'0')+':'+(i%2?'30':'00')).filter(t=>(['19:00','19:30','20:00'].includes(t))||closed.some(x=>x.concept===c&&String(x.slot_time).slice(0,5)===t)).length;
  $('dateSummary').replaceChildren();const stats=document.createElement('div');stats.className='statrow';
  for(const c of ['A','B']){const b=document.createElement('b');b.textContent='Konsep '+c+': '+totals[c]+' confirmed · '+pending[c]+' menunggu · '+(30-countClosed(c)-totals[c]-pending[c])+' tersedia';stats.append(b)}
  $('dateSummary').append(stats);
