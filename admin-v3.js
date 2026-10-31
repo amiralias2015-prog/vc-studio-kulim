@@ -43,5 +43,5 @@ async function refresh(){
 }
 el('v3CheckNew').onclick=refresh;el('v3Export').onclick=csvExport;
 const oldLoad=loadAll;
-loadAll=async function(){await oldLoad();await refresh()};
+loadAll=async function(){await refresh();await oldLoad()};
 })();
