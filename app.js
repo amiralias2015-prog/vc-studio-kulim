@@ -37,11 +37,46 @@ else{const field=document.createElement('textarea');field.value=number;field.sty
 $('copyBankStatus').textContent='Nombor akaun berjaya disalin. Sila semak nama penerima sebelum membuat bayaran.';
 }catch(e){$('copyBankStatus').textContent='Tidak dapat salin automatik. Tekan lama nombor akaun untuk salin.';}
 }
+function setupBookingDates(){
+ const monthSelect=$('bookingMonth'),daySelect=$('date');
+ const start=settings?.booking_start,end=settings?.booking_end;
+ const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+ const parts=Object.fromEntries(today.map(p=>[p.type,p.value]));
+ const todayISO=parts.year+'-'+parts.month+'-'+parts.day;
+ const first=start&&start>todayISO?start:todayISO;
+ monthSelect.replaceChildren(new Option('Pilih bulan',''));
+ daySelect.replaceChildren(new Option('Pilih bulan dahulu',''));
+ daySelect.disabled=true;
+ if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(first)||!/^\\d{4}-\\d{2}-\\d{2}$/.test(end)||first>end){
+  monthSelect.disabled=true;daySelect.replaceChildren(new Option('Tiada tarikh tersedia',''));return;
+ }
+ monthSelect.disabled=false;
+ const months=new Map();
+ const dayFormat=new Intl.DateTimeFormat('ms-MY',{timeZone:'UTC',weekday:'short',day:'numeric',month:'short'});
+ const monthFormat=new Intl.DateTimeFormat('ms-MY',{timeZone:'UTC',month:'long',year:'numeric'});
+ for(let value=first,count=0;value<=end&&count<370;count++){
+  const y=Number(value.slice(0,4)),m=Number(value.slice(5,7)),d=Number(value.slice(8,10));
+  const date=new Date(Date.UTC(y,m-1,d)),key=value.slice(0,7);
+  if(!months.has(key))months.set(key,[]);
+  months.get(key).push({value,label:dayFormat.format(date)});
+  value=new Date(date.getTime()+86400000).toISOString().slice(0,10);
+ }
+ for(const [key] of months){
+  const date=new Date(key+'-01T00:00:00Z');
+  monthSelect.add(new Option(monthFormat.format(date),key));
+ }
+ monthSelect.addEventListener('change',()=>{
+  daySelect.replaceChildren(new Option('Pilih tarikh',''));
+  for(const item of months.get(monthSelect.value)||[])daySelect.add(new Option(item.label,item.value));
+  daySelect.disabled=!monthSelect.value;
+  renderSlots();
+ });
+}
 async function init(){for(let i=1;i<=15;i++){const o=document.createElement('option');o.value=i;o.textContent=i+' orang';o.selected=i===6;$('people').append(o)}
 for(const [id,img] of [['conceptA',C.conceptAImage],['conceptB',C.conceptBImage]])if(img){const p=$(id).querySelector('.placeholder');p.style.background="center/cover url('"+encodeURI(img)+"')";p.textContent=''}
 if(ready){const r=await db.rpc('public_studio_settings');if(!r.error&&r.data?.length)settings=r.data[0]}
 settings=settings||{booking_start:C.bookingStart,booking_end:C.bookingEnd,ramadan_start:C.ramadanStart,ramadan_end:C.ramadanEnd,raya_first:C.rayaFirst,raya_second:C.rayaSecond,booking_open:false};
-$('date').min=settings.booking_start||new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'});if(settings.booking_end)$('date').max=settings.booking_end;
+setupBookingDates();
 const enabled=!!(settings.booking_open&&ready&&C.bankName&&C.bankAccount);
 if(enabled)$('launchNotice').classList.add('hidden');else $('launchNotice').textContent='TEMPAHAN BELUM DIBUKA — Paparan ujian sahaja. Jangan bayar deposit dahulu.';
 $('submitBooking').disabled=!enabled;
