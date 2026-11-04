@@ -5,7 +5,7 @@ const pad=n=>String(n).padStart(2,'0'), displayTime=t=>{const[h,m]=t.split(':').
 const money=()=>{const n=Number($('people').value),d=$('date').value,base=settings&&(d===settings.raya_first||d===settings.raya_second)?200:150,extra=Math.max(0,n-6)*10;return{base,extra,total:base+extra}};
 function chooseConcept(x){concept=x;selectedTime='';$('conceptA').setAttribute('aria-pressed',String(x==='A'));$('conceptB').setAttribute('aria-pressed',String(x==='B'));renderSlots()}window.chooseConcept=chooseConcept;
 function renderSummary(){const p=money();$('sumConcept').textContent=concept;$('sumDate').textContent=$('date').value||'Belum pilih';$('sumTime').textContent=selectedTime?displayTime(selectedTime):'Belum pilih';$('sumPeople').textContent=$('people').value+' orang';$('sumBase').textContent='RM'+p.base;$('sumExtra').textContent='RM'+p.extra;$('total').textContent='RM'+p.total;$('balance').textContent='RM'+(p.total-50)}window.renderSummary=renderSummary;
-async function renderSlots(){const renderVersion=++slotRenderVersion;selectedTime='';const d=$('date').value,chosenConcept=concept,box=$('slots');box.replaceChildren();if(!d){box.textContent='Pilih tarikh dahulu.';renderSummary();return}
+async function renderSlots(){const renderVersion=++slotRenderVersion;selectedTime='';const d=$('date').value,chosenConcept=concept,box=$('slots');box.replaceChildren();if(!d){box.textContent='Pilih tarikh dahulu.';renderSummary();return}if(d<$('date').min||d>$('date').max){$('date').value='';box.textContent='Tarikh di luar tempoh booking studio.';renderSummary();return}
 if(ready&&settings?.booking_open){const r=await db.rpc('slot_availability',{p_day:d,p_concept:chosenConcept});if(renderVersion!==slotRenderVersion)return;if(r.error){$('bookingStatus').textContent='Tidak dapat semak slot.';return}booked=r.data||[]}else booked=[];
 const fragment=document.createDocumentFragment();for(const time of times){const b=document.createElement('button');b.type='button';b.className='slot';b.textContent=displayTime(time);const rest=time>='19:00'&&time<'20:30',unavailable=rest||booked.some(x=>x.slot_time===time&&x.unavailable);b.disabled=unavailable;b.title=rest?'Rehat malam':unavailable?'Slot penuh':'Slot kosong';if(unavailable)b.textContent+=rest?' · Tutup':' · Penuh';b.onclick=()=>{selectedTime=time;box.querySelectorAll('.slot').forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');renderSummary()};fragment.append(b)}if(renderVersion!==slotRenderVersion)return;box.replaceChildren(fragment);renderSummary()}window.renderSlots=renderSlots;
 async function submitBooking(e){e.preventDefault();if(busy)return;const d=$('date').value,name=$('custName').value.trim(),phone=$('phone').value.trim();
@@ -38,39 +38,17 @@ $('copyBankStatus').textContent='Nombor akaun berjaya disalin. Sila semak nama p
 }catch(e){$('copyBankStatus').textContent='Tidak dapat salin automatik. Tekan lama nombor akaun untuk salin.';}
 }
 function setupBookingDates(){
- const monthSelect=$('bookingMonth'),daySelect=$('date');
- const start=settings?.booking_start,end=settings?.booking_end;
- const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
- const parts=Object.fromEntries(today.map(p=>[p.type,p.value]));
- const todayISO=parts.year+'-'+parts.month+'-'+parts.day;
- const first=start&&start>todayISO?start:todayISO;
- monthSelect.replaceChildren(new Option('Pilih bulan',''));
- daySelect.replaceChildren(new Option('Pilih bulan dahulu',''));
- daySelect.disabled=true;
- if(!/^\d{4}-\d{2}-\d{2}$/.test(first)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||first>end){
-  monthSelect.disabled=true;daySelect.replaceChildren(new Option('Tiada tarikh tersedia',''));return;
- }
- monthSelect.disabled=false;
- const months=new Map();
- const dayFormat=new Intl.DateTimeFormat('ms-MY',{timeZone:'UTC',weekday:'short',day:'numeric',month:'short'});
- const monthFormat=new Intl.DateTimeFormat('ms-MY',{timeZone:'UTC',month:'long',year:'numeric'});
- for(let value=first,count=0;value<=end&&count<370;count++){
-  const y=Number(value.slice(0,4)),m=Number(value.slice(5,7)),d=Number(value.slice(8,10));
-  const date=new Date(Date.UTC(y,m-1,d)),key=value.slice(0,7);
-  if(!months.has(key))months.set(key,[]);
-  months.get(key).push({value,label:dayFormat.format(date)});
-  value=new Date(date.getTime()+86400000).toISOString().slice(0,10);
- }
- for(const [key] of months){
-  const date=new Date(key+'-01T00:00:00Z');
-  monthSelect.add(new Option(monthFormat.format(date),key));
- }
- monthSelect.addEventListener('change',()=>{
-  daySelect.replaceChildren(new Option('Pilih tarikh',''));
-  for(const item of months.get(monthSelect.value)||[])daySelect.add(new Option(item.label,item.value));
-  daySelect.disabled=!monthSelect.value;
-  renderSlots();
- });
+ const field=$('date');
+ const start=settings?.booking_start||'2027-02-08';
+ const end=settings?.booking_end||'2027-04-09';
+ const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+ const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));
+ const today=p.year+'-'+p.month+'-'+p.day;
+ const min=start>today?start:today;
+ field.min=min;
+ field.max=end;
+ field.value=min<=end?min:'';
+ field.disabled=min>end;
 }
 async function init(){for(let i=1;i<=15;i++){const o=document.createElement('option');o.value=i;o.textContent=i+' orang';o.selected=i===6;$('people').append(o)}
 for(const [id,img] of [['conceptA',C.conceptAImage],['conceptB',C.conceptBImage]])if(img){const p=$(id).querySelector('.placeholder');p.style.background="center/cover url('"+encodeURI(img)+"')";p.textContent=''}
