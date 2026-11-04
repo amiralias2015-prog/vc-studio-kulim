@@ -39,16 +39,57 @@ $('copyBankStatus').textContent='Nombor akaun berjaya disalin. Sila semak nama p
 }
 function setupBookingDates(){
  const field=$('date');
- const start=settings?.booking_start||'2027-02-08';
- const end=settings?.booking_end||'2027-04-09';
- const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
- const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));
- const today=p.year+'-'+p.month+'-'+p.day;
- const min=start>today?start:today;
- field.min=min;
- field.max=end;
- field.value=min<=end?min:'';
- field.disabled=min>end;
+ const settingsStart=settings?.booking_start||'2027-02-08';
+ const settingsEnd=settings?.booking_end||'2027-04-09';
+ const todayParts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+ const tp=Object.fromEntries(todayParts.map(x=>[x.type,x.value]));
+ const today=tp.year+'-'+tp.month+'-'+tp.day;
+ const min=settingsStart>today?settingsStart:today,max=settingsEnd;
+ field.min=min;field.max=max;field.value='';
+ const months=[];
+ if(min<=max){
+  let current=min.slice(0,7);
+  while(current<=max.slice(0,7)&&months.length<12){
+   months.push(current);
+   const d=new Date(current+'-01T00:00:00Z');
+   d.setUTCMonth(d.getUTCMonth()+1);
+   current=d.toISOString().slice(0,7);
+  }
+ }
+ const labelFmt=new Intl.DateTimeFormat('ms-MY',{month:'long',year:'numeric',timeZone:'UTC'});
+ const chosenFmt=new Intl.DateTimeFormat('ms-MY',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
+ let monthIndex=0;
+ const prev=$('calendarPrev'),next=$('calendarNext'),days=$('calendarDays');
+ function draw(){
+  days.replaceChildren();
+  if(!months.length){$('calendarTitle').textContent='Tiada tarikh tersedia';prev.disabled=true;next.disabled=true;return;}
+  const ym=months[monthIndex],first=new Date(ym+'-01T00:00:00Z');
+  $('calendarTitle').textContent=labelFmt.format(first);
+  prev.disabled=monthIndex===0;next.disabled=monthIndex===months.length-1;
+  for(const name of ['Isn','Sel','Rab','Kha','Jum','Sab','Aha']){
+   const cell=document.createElement('span');cell.className='vc-weekday';cell.textContent=name;days.append(cell);
+  }
+  const offset=(first.getUTCDay()+6)%7;
+  for(let n=0;n<offset;n++){const blank=document.createElement('span');blank.setAttribute('aria-hidden','true');days.append(blank);}
+  const count=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0)).getUTCDate();
+  for(let day=1;day<=count;day++){
+   const value=ym+'-'+pad(day),button=document.createElement('button');
+   button.type='button';button.className='vc-day';button.textContent=day;
+   button.disabled=value<min||value>max;
+   button.setAttribute('aria-label',chosenFmt.format(new Date(value+'T00:00:00Z')));
+   button.setAttribute('aria-pressed',String(field.value===value));
+   button.onclick=()=>{
+    field.value=value;
+    $('calendarChosen').textContent='Dipilih: '+chosenFmt.format(new Date(value+'T00:00:00Z'));
+    draw();renderSlots();
+   };
+   days.append(button);
+  }
+ }
+ prev.onclick=()=>{if(monthIndex>0){monthIndex--;draw()}};
+ next.onclick=()=>{if(monthIndex<months.length-1){monthIndex++;draw()}};
+ $('calendarChosen').textContent=months.length?'Sila pilih tarikh':'Tiada tarikh dalam tempoh booking';
+ draw();
 }
 async function init(){for(let i=1;i<=15;i++){const o=document.createElement('option');o.value=i;o.textContent=i+' orang';o.selected=i===6;$('people').append(o)}
 for(const [id,img] of [['conceptA',C.conceptAImage],['conceptB',C.conceptBImage]])if(img){const p=$(id).querySelector('.placeholder');p.style.background="center/cover url('"+encodeURI(img)+"')";p.textContent=''}
