@@ -47,7 +47,7 @@ function setupBookingDates(){
  monthSelect.replaceChildren(new Option('Pilih bulan',''));
  daySelect.replaceChildren(new Option('Pilih bulan dahulu',''));
  daySelect.disabled=true;
- if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(first)||!/^\\d{4}-\\d{2}-\\d{2}$/.test(end)||first>end){
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(first)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||first>end){
   monthSelect.disabled=true;daySelect.replaceChildren(new Option('Tiada tarikh tersedia',''));return;
  }
  monthSelect.disabled=false;
