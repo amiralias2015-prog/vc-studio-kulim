@@ -19,9 +19,23 @@ $('receiptWhatsapp').href='https://wa.me/'+(C.studioWhatsapp||'60162475836')+'?t
 }catch(e){$('bookingStatus').textContent=e.message||'Gagal booking. Sila cuba lagi.';await renderSlots()}finally{busy=false;$('submitBooking').disabled=!settings?.booking_open}}
 function updatePaymentDisplay(){
 const qr=$('payment').value==='QR',hasQr=!!C.duitNowQrImage;
-$('paymentTitle').textContent=qr?'DuitNow QR':'Bank Transfer';
-$('paymentInfo').textContent=qr?(hasQr?'Imbas kod QR untuk deposit RM50. Penerima: '+(C.bankHolder||'VC STUDIO KULIM'):'Kod QR belum tersedia. Sila pilih Bank Transfer atau hubungi studio.'):((C.bankName&&C.bankAccount)?'Bank: '+C.bankName+' | No. akaun: '+C.bankAccount+' | Nama penerima: '+(C.bankHolder||''):'Maklumat bank belum tersedia. Sila hubungi studio.');
-$('qrImage').classList.toggle('hidden',!qr||!hasQr);
+$('qrPaymentPanel').style.display=qr?'block':'none';
+$('bankPaymentPanel').style.display=qr?'none':'block';
+$('qrImage').style.display=qr&&hasQr?'block':'none';
+const desc=$('qrPaymentPanel').querySelector('.fine');
+if(desc)desc.textContent=hasQr?'Imbas kod QR untuk membuat deposit RM50.':'Kod QR belum tersedia. Pilih Bank Transfer atau hubungi studio.';
+$('bankPaymentInfo').textContent=C.bankName&&C.bankAccount?'Bank: '+C.bankName+' | No. Akaun: '+C.bankAccount+' | Penerima: '+(C.bankHolder||''):'Maklumat akaun bank belum tersedia.';
+$('copyBankAccount').disabled=!C.bankAccount;
+}
+window.vcShowPaymentMethod=updatePaymentDisplay;
+async function copyBankAccount(){
+const number=C.bankAccount||'';
+if(!number)return;
+try{
+if(navigator.clipboard&&window.isSecureContext)await navigator.clipboard.writeText(number);
+else{const field=document.createElement('textarea');field.value=number;field.style.position='fixed';field.style.opacity='0';document.body.appendChild(field);field.select();const copied=document.execCommand('copy');field.remove();if(!copied)throw Error('Copy unsupported');}
+$('copyBankStatus').textContent='Nombor akaun berjaya disalin. Sila semak nama penerima sebelum membuat bayaran.';
+}catch(e){$('copyBankStatus').textContent='Tidak dapat salin automatik. Tekan lama nombor akaun untuk salin.';}
 }
 async function init(){for(let i=1;i<=15;i++){const o=document.createElement('option');o.value=i;o.textContent=i+' orang';o.selected=i===6;$('people').append(o)}
 for(const [id,img] of [['conceptA',C.conceptAImage],['conceptB',C.conceptBImage]])if(img){const p=$(id).querySelector('.placeholder');p.style.background="center/cover url('"+encodeURI(img)+"')";p.textContent=''}
@@ -32,5 +46,5 @@ const enabled=!!(settings.booking_open&&ready&&C.bankName&&C.bankAccount);
 if(enabled)$('launchNotice').classList.add('hidden');else $('launchNotice').textContent='TEMPAHAN BELUM DIBUKA — Paparan ujian sahaja. Jangan bayar deposit dahulu.';
 $('submitBooking').disabled=!enabled;
 if(C.duitNowQrImage)$('qrImage').src=C.duitNowQrImage;
-$('payment').addEventListener('change',updatePaymentDisplay);updatePaymentDisplay();
+$('payment').addEventListener('change',updatePaymentDisplay);$('copyBankAccount').addEventListener('click',copyBankAccount);updatePaymentDisplay();
 $('bookingForm').addEventListener('submit',submitBooking);$('date').addEventListener('change',renderSlots);$('people').addEventListener('change',renderSummary);renderSlots()}init();
