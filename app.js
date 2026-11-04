@@ -17,6 +17,12 @@ const b=r.data[0];$('bookingStatus').textContent='Slot dipegang sementara 30 min
 const msg='Assalamualaikum VC STUDIO KULIM, booking '+b.booking_ref+'. Konsep '+concept+', '+d+', '+displayTime(selectedTime)+'. Saya ingin hantar bukti deposit RM50 ('+$('payment').value+').';
 $('receiptWhatsapp').href='https://wa.me/'+(C.studioWhatsapp||'60162475836')+'?text='+encodeURIComponent(msg);$('bookingSuccess').classList.remove('hidden');$('bookingSuccess').scrollIntoView({behavior:'smooth'});await renderSlots()
 }catch(e){$('bookingStatus').textContent=e.message||'Gagal booking. Sila cuba lagi.';await renderSlots()}finally{busy=false;$('submitBooking').disabled=!settings?.booking_open}}
+function updatePaymentDisplay(){
+const qr=$('payment').value==='QR',hasQr=!!C.duitNowQrImage;
+$('paymentTitle').textContent=qr?'DuitNow QR':'Bank Transfer';
+$('paymentInfo').textContent=qr?(hasQr?'Imbas kod QR untuk deposit RM50. Penerima: '+(C.bankHolder||'VC STUDIO KULIM'):'Kod QR belum tersedia. Sila pilih Bank Transfer atau hubungi studio.'):((C.bankName&&C.bankAccount)?'Bank: '+C.bankName+' | No. akaun: '+C.bankAccount+' | Nama penerima: '+(C.bankHolder||''):'Maklumat bank belum tersedia. Sila hubungi studio.');
+$('qrImage').classList.toggle('hidden',!qr||!hasQr);
+}
 async function init(){for(let i=1;i<=15;i++){const o=document.createElement('option');o.value=i;o.textContent=i+' orang';o.selected=i===6;$('people').append(o)}
 for(const [id,img] of [['conceptA',C.conceptAImage],['conceptB',C.conceptBImage]])if(img){const p=$(id).querySelector('.placeholder');p.style.background="center/cover url('"+encodeURI(img)+"')";p.textContent=''}
 if(ready){const r=await db.rpc('public_studio_settings');if(!r.error&&r.data?.length)settings=r.data[0]}
@@ -24,6 +30,7 @@ settings=settings||{booking_start:C.bookingStart,booking_end:C.bookingEnd,ramada
 $('date').min=settings.booking_start||new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'});if(settings.booking_end)$('date').max=settings.booking_end;
 const enabled=!!(settings.booking_open&&ready&&C.bankName&&C.bankAccount);
 if(enabled)$('launchNotice').classList.add('hidden');else $('launchNotice').textContent='TEMPAHAN BELUM DIBUKA — Paparan ujian sahaja. Jangan bayar deposit dahulu.';
-$('submitBooking').disabled=!enabled;$('paymentInfo').textContent=C.bankName&&C.bankAccount?C.bankName+' · '+C.bankAccount+' · '+(C.bankHolder||''):'Maklumat bank akan diumumkan oleh studio.';
-if(C.duitNowQrImage){$('qrImage').src=C.duitNowQrImage;$('qrImage').classList.remove('hidden')}
+$('submitBooking').disabled=!enabled;
+if(C.duitNowQrImage)$('qrImage').src=C.duitNowQrImage;
+$('payment').addEventListener('change',updatePaymentDisplay);updatePaymentDisplay();
 $('bookingForm').addEventListener('submit',submitBooking);$('date').addEventListener('change',renderSlots);$('people').addEventListener('change',renderSummary);renderSlots()}init();
