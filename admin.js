@@ -17,10 +17,54 @@ function reminderWhatsApp(b){
  const message='Assalamualaikum '+b.customer_name+' 😊\n\nPeringatan photoshoot Raya di VC STUDIO KULIM.\n\nRujukan: '+b.booking_ref+'\nTarikh: '+dateText+'\nMasa: '+time+'\nKonsep: '+b.concept+'\nTempoh photoshoot: 20 minit\n\nMohon hadir 5–10 minit lebih awal. Jumpa nanti! 📸';
  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(message),'_blank','noopener,noreferrer');
 }
-async function loadAll(){if(!db)return;const r=await db.from('studio_bookings').select('*').order('booking_date',{ascending:true}).order('slot_time',{ascending:true}).limit(1000);if(r.error){$('authMsg').textContent=r.error.message;return}
-$('bookings').replaceChildren();for(const b of r.data||[]){const row=document.createElement('tr');for(const v of [b.booking_ref,b.concept,b.booking_date,b.slot_time,b.customer_name,b.phone,b.guests,'RM'+b.total_amount,'RM'+b.deposit,b.status]){const td=document.createElement('td');td.textContent=v;row.append(td)}const td=document.createElement('td'),sel=document.createElement('select');for(const status of ['awaiting_payment','pending_review','confirmed','cancelled','expired']){const o=document.createElement('option');o.value=status;o.textContent=status;o.selected=b.status===status;sel.append(o)}sel.onchange=async()=>{if(sel.value==='confirmed'&&b.status!=='confirmed'){alert('Untuk mengesahkan booking, gunakan butang Sahkan Deposit RM50 selepas semak Maybank.');sel.value=b.status;return;}if(!confirm('Sahkan perubahan selepas semak duit sebenar dalam akaun bank?')){sel.value=b.status;return}const x=await db.from('studio_bookings').update({status:sel.value,confirmed_at:sel.value==='confirmed'?new Date().toISOString():null}).eq('id',b.id);if(x.error)alert(x.error.message);loadAll()};td.append(sel);if(b.status==='confirmed'){for(const [label,fn] of [['💰 Baki',()=>vcAdminExtra.markBalance(b)],['📅 Tukar Slot',()=>vcAdminExtra.reschedule(b)],...(b.deposit_verified_at?[['🧾 Resit Deposit',()=>vcAdminExtra.receipt(b,'deposit')]]:[]),...(Number(b.balance_paid||0)>0?[['🧾 Resit Baki',()=>vcAdminExtra.receipt(b,'balance')]]:[]),['📲 Sahkan WhatsApp',()=>vcAdminExtra.confirmationWhatsApp(b)]]){const action=document.createElement('button');action.type='button';action.className='inlineAction';action.textContent=label;action.onclick=fn;td.append(action)}}if(b.status==='confirmed'){const reminder=document.createElement('button');reminder.type='button';reminder.textContent='📲 Hantar Reminder';reminder.style.cssText='margin:7px 0 0;min-width:145px;display:block';reminder.onclick=()=>reminderWhatsApp(b);td.append(reminder)}row.append(td);$('bookings').append(row)}
-if(window.vcAdminExtra)window.vcAdminExtra.render(r.data||[]);
-const ss=await db.from('studio_settings').select('*').eq('id',1).single();if(ss.data){for(const k of ['booking_start','booking_end','ramadan_start','ramadan_end','raya_first','raya_second'])$(k).value=ss.data[k]||'';$('booking_open').checked=ss.data.booking_open}}
+
+const vcBookingState={all:[],filtered:[],page:1,pageSize:50};
+window.vcAllBookingRows=[];
+async function fetchAllStudioBookings(){
+ const records=[],size=500;
+ for(let start=0;start<20000;start+=size){
+  const r=await db.from('studio_bookings').select('*')
+   .order('booking_date',{ascending:true})
+   .order('slot_time',{ascending:true})
+   .order('id',{ascending:true})
+   .range(start,start+size-1);
+  if(r.error)throw r.error;
+  const part=r.data||[];
+  records.push(...part);
+  if(part.length<size)return records;
+ }
+ throw new Error('Terlalu banyak rekod. Sila hadkan carian atau guna export berhalaman.');
+}
+function renderBookingPage(){
+ const s=vcBookingState, count=s.filtered.length,pages=Math.max(1,Math.ceil(count/s.pageSize));
+ s.page=Math.max(1,Math.min(s.page,pages));
+ const from=(s.page-1)*s.pageSize,rows=s.filtered.slice(from,from+s.pageSize);
+ $('bookings').replaceChildren();
+ for(const b of rows){const row=document.createElement('tr');for(const v of [b.booking_ref,b.concept,b.booking_date,b.slot_time,b.customer_name,b.phone,b.guests,'RM'+b.total_amount,'RM'+b.deposit,b.status]){const td=document.createElement('td');td.textContent=v;row.append(td)}const td=document.createElement('td'),sel=document.createElement('select');for(const status of ['awaiting_payment','pending_review','confirmed','cancelled','expired']){const o=document.createElement('option');o.value=status;o.textContent=status;o.selected=b.status===status;sel.append(o)}sel.onchange=async()=>{if(sel.value==='confirmed'&&b.status!=='confirmed'){alert('Untuk mengesahkan booking, gunakan butang Sahkan Deposit RM50 selepas semak Maybank.');sel.value=b.status;return;}if(!confirm('Sahkan perubahan selepas semak duit sebenar dalam akaun bank?')){sel.value=b.status;return}const x=await db.from('studio_bookings').update({status:sel.value,confirmed_at:sel.value==='confirmed'?new Date().toISOString():null}).eq('id',b.id);if(x.error)alert(x.error.message);loadAll()};td.append(sel);if(b.status==='confirmed'){for(const [label,fn] of [['💰 Baki',()=>vcAdminExtra.markBalance(b)],['📅 Tukar Slot',()=>vcAdminExtra.reschedule(b)],...(b.deposit_verified_at?[['🧾 Resit Deposit',()=>vcAdminExtra.receipt(b,'deposit')]]:[]),...(Number(b.balance_paid||0)>0?[['🧾 Resit Baki',()=>vcAdminExtra.receipt(b,'balance')]]:[]),['📲 Sahkan WhatsApp',()=>vcAdminExtra.confirmationWhatsApp(b)]]){const action=document.createElement('button');action.type='button';action.className='inlineAction';action.textContent=label;action.onclick=fn;td.append(action)}}if(b.status==='confirmed'){const reminder=document.createElement('button');reminder.type='button';reminder.textContent='📲 Hantar Reminder';reminder.style.cssText='margin:7px 0 0;min-width:145px;display:block';reminder.onclick=()=>reminderWhatsApp(b);td.append(reminder)}row.append(td);$('bookings').append(row)}
+ $('bookingPageInfo').textContent=(count?('Rekod '+(from+1)+'–'+Math.min(from+s.pageSize,count)):'Tiada rekod')+' daripada '+count+' • Halaman '+s.page+'/'+pages;
+ $('bookingPrev').disabled=s.page<=1;
+ $('bookingNext').disabled=s.page>=pages;
+ $('searchCount').textContent='Hasil carian: '+count+' daripada '+s.all.length+' rekod. Dipaparkan '+rows.length+' bagi setiap halaman.';
+}
+window.vcBookingSetFilter=function(q){
+ const s=vcBookingState,term=String(q||'').trim().toLowerCase();
+ s.filtered=term?s.all.filter(b=>[b.customer_name,b.phone,b.booking_ref].some(v=>String(v||'').toLowerCase().includes(term))):s.all;
+ s.page=1;renderBookingPage();
+};
+$('bookingPrev').addEventListener('click',()=>{vcBookingState.page--;renderBookingPage()});
+$('bookingNext').addEventListener('click',()=>{vcBookingState.page++;renderBookingPage()});
+async function loadAll(){
+ if(!db)return;
+ $('bookingPageInfo').textContent='Memuatkan semua rekod…';
+ let rows;
+ try{rows=await fetchAllStudioBookings()}catch(err){$('bookingPageInfo').textContent='Gagal memuatkan rekod: '+err.message;return}
+ vcBookingState.all=rows;
+ window.vcAllBookingRows=rows;
+ if(window.vcAdminExtra)window.vcAdminExtra.render(rows);
+ else window.vcBookingSetFilter('');
+ const ss=await db.from('studio_settings').select('*').eq('id',1).single();
+ if(ss.data){for(const k of ['booking_start','booking_end','ramadan_start','ramadan_end','raya_first','raya_second'])$(k).value=ss.data[k]||'';$('booking_open').checked=ss.data.booking_open}
+}
 async function checkBookingDate(){
  const date=$('checkDate').value;if(!date){$('dateSummary').textContent='Sila pilih tarikh.';return;}
  $('dateSummary').textContent='Memuatkan data slot…';$('dateSlots').replaceChildren();
