@@ -4,7 +4,7 @@ const el=id=>document.getElementById(id);let known=new Set(),initialized=false,l
 const escapeCsv=v=>{const s=String(v??'');return '"'+( /^[=+@\-]/.test(s)?'\''+s:s).replace(/"/g,'""')+'"'};
 function csvExport(){
  if(!lastRows.length){alert('Tiada rekod untuk dieksport. Tekan Muat Semula dahulu.');return;}
- const fields=['booking_ref','concept','booking_date','slot_time','customer_name','phone','guests','total_amount','deposit','deposit_verified_at','balance_paid','status','checkin_status','checked_in_at','created_at'];
+ const fields=['booking_ref','concept','booking_date','slot_time','customer_name','phone','guests','total_amount','deposit','deposit_verified_at','balance_paid','balance_paid_at','status','checkin_status','checked_in_at','created_at'];
  const content='\uFEFF'+fields.join(',')+'\r\n'+lastRows.map(r=>fields.map(k=>escapeCsv(r[k])).join(',')).join('\r\n');
  const blob=new Blob([content],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='VC_STUDIO_KULIM_BOOKINGS_'+new Date().toISOString().slice(0,10)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
