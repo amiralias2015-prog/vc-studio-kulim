@@ -7,12 +7,9 @@ window.vcAdminExtra={
   this.stats();this.search();this.calendar();this.tomorrow();
  },
  search(){
-  const q=($('searchCustomer').value||'').trim().toLowerCase(),rows=this.rows;
-  const visible=rows.filter(b=>[b.customer_name,b.phone,b.booking_ref].some(v=>String(v||'').toLowerCase().includes(q)));
-  document.querySelectorAll('#bookings tr').forEach((tr,i)=>{tr.classList.toggle('searchhide',!visible.includes(rows[i]))});
-  $('searchCount').textContent='Memaparkan '+visible.length+' daripada '+rows.length+' rekod (maksimum 1,000)';
+  if(window.vcBookingSetFilter)window.vcBookingSetFilter(($('searchCustomer').value||'').trim());
  },
- stats(){
+  stats(){
   const confirmed=this.rows.filter(b=>b.status==='confirmed');
   const sales=confirmed.reduce((a,b)=>a+Number(b.total_amount||0),0);
   const dep=confirmed.reduce((a,b)=>a+Number(b.deposit||0),0);
