@@ -27,6 +27,13 @@ Mobile-first website and protected admin dashboard, designed for a **Supabase** 
 - **No automatic bank confirmation or receipt-upload storage is included.** Receipt is sent to admin via WhatsApp; no gateway required.
 - Expired temporary holds are treated as available and atomically reclaimed by the next booking. Admin can view/mark them explicitly; for production, add a Supabase scheduled cron cleanup and anti-spam limits.
 
+## Payment receipts V4
+
+- Run `admin_features_v4.sql` once in Supabase SQL Editor to add the balance-payment timestamp and admin audit field. This migration does not change existing bookings or the booking-open setting.
+- After the admin verifies the RM50 deposit, the dashboard shows **Resit Deposit**. After recording additional balance received, it shows **Resit Baki** with the cumulative amount paid and outstanding balance.
+- Open the receipt, choose **Cetak / Simpan PDF**, then attach the saved PDF manually in the customer's WhatsApp chat. WhatsApp pre-fills a message but cannot attach the PDF automatically from this static site.
+- The receipt is issued only after the admin has manually checked the money in the bank. It is a studio receipt, not a bank transaction slip.
+
 ## Important production work before publishing to customers
 
 - Setup server-side rate limiting / CAPTCHA to prevent malicious mass holds, and confirm your privacy policy and retention requirements.
