@@ -24,7 +24,7 @@ function render(rows){
  else{initialized=true;el('v3NewCount').textContent='Menunggu deposit / semakan: '+newOnes.length+' booking.'}
  known=ids;
  const wrap=el('v3Tools');wrap.replaceChildren();
- for(const b of lastRows.filter(x=>!['cancelled','expired'].includes(x.status))){
+ for(const b of lastRows.filter(x=>!['cancelled','expired'].includes(x.status)).sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||''))).slice(0,100)){
   const box=document.createElement('div');box.style.cssText='border-bottom:1px solid #ddd;padding:10px 0';
   const label=document.createElement('div');label.textContent=b.booking_ref+' | '+b.customer_name+' | '+b.booking_date+' '+String(b.slot_time).slice(0,5)+' | '+b.status+' | '+(b.deposit_verified_at?'Deposit disahkan':'Deposit belum disahkan');box.append(label);
   if(!b.deposit_verified_at&&['awaiting_payment','pending_review','confirmed'].includes(b.status)){const btn=document.createElement('button');btn.textContent='✅ Sahkan Deposit RM50';btn.className='inlineAction';btn.onclick=()=>verify(b);box.append(btn)}
@@ -33,15 +33,17 @@ function render(rows){
  }
  el('v3Status').textContent='Nota: Booking confirmed lama tanpa rekod deposit akan ditanda belum disahkan sehingga admin semak semula.';
 }
-async function refresh(){
- const session=await db.auth.getUser();if(!session.data?.user)return;
- const admin=await db.rpc('is_studio_admin');if(admin.error||!admin.data)return;
- const expired=await db.rpc('admin_expire_studio_holds');if(expired.error){el('v3Status').textContent='Sila jalankan SQL V3 dahulu: '+expired.error.message;return;}
- const r=await db.from('studio_bookings').select('*').order('created_at',{ascending:false}).limit(1000);
- if(r.error){el('v3Status').textContent=r.error.message;return;}
- render(r.data||[]);
-}
+async function refresh(){await loadAll();}
 el('v3CheckNew').onclick=refresh;el('v3Export').onclick=csvExport;
 const oldLoad=loadAll;
-loadAll=async function(){await refresh();await oldLoad()};
+loadAll=async function(){
+ const session=await db.auth.getUser();
+ if(!session.data?.user)return;
+ const admin=await db.rpc('is_studio_admin');
+ if(admin.error||!admin.data)return;
+ const expired=await db.rpc('admin_expire_studio_holds');
+ if(expired.error){el('v3Status').textContent='Tidak dapat kemas kini hold: '+expired.error.message;}
+ await oldLoad();
+ render(window.vcAllBookingRows||[]);
+};
 })();
